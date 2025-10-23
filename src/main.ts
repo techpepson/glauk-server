@@ -3,6 +3,10 @@ import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import helmet from 'helmet';
+import { configDotenv } from 'dotenv';
+import { ValidationPipe } from '@nestjs/common';
+
+configDotenv();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -10,7 +14,7 @@ async function bootstrap() {
   });
 
   //MVC
-  app.setBaseViewsDir(join(__dirname, 'views'));
+  app.setBaseViewsDir(join(__dirname, '..', 'views'));
   app.setViewEngine('hbs');
   app.useStaticAssets(join(__dirname, '..', 'public'));
 
@@ -41,6 +45,13 @@ async function bootstrap() {
 
   //set global prefix
   app.setGlobalPrefix('api');
+
+  //validator
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+    }),
+  );
 
   //listen to port
   await app.listen(process.env.PORT ?? 3000);

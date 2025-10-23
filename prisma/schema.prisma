@@ -13,3 +13,33 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id                       String   @id @default(cuid())
+  name                     String
+  userName                 String?
+  isEmailVerified          Boolean? @default(false)
+  email                    String   @unique
+  password                 String
+  level                    Int?     @default(1)
+  phone                    String
+  xp                       Int?     @default(0)
+  totalXp                  Int?     @default(100)
+  targetGpa                Float?   @default(4.0)
+  major                    String?
+  averageScore             Float    @default(0)
+  profileImage             String?
+  isFirstTimeUser          Boolean  @default(true)
+  isUserRemembered         Boolean  @default(false)
+  preferEmailNotification  Boolean  @default(true)
+  preferPushNotification   Boolean  @default(true)
+  preferQuizReminders      Boolean  @default(true)
+  preferLeaderboardUpdates Boolean  @default(true)
+  role                     Role     @default(STUDENT)
+}
+
+enum Role {
+  STUDENT
+  LECTURER
+  ADMIN
+}
