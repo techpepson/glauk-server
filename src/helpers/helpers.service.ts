@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import ShortUniqueId from 'short-unique-id';
 
 @Injectable()
 export class HelpersService {
@@ -36,5 +37,10 @@ export class HelpersService {
     } else {
       return false;
     }
+  }
+
+  async generateRandomCode(length: number) {
+    const uid = new ShortUniqueId({ length: length, dictionary: 'hex' });
+    return uid.rnd();
   }
 }
