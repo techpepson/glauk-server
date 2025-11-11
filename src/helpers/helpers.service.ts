@@ -18,9 +18,15 @@ export class HelpersService {
 
     //send an error if user does not exist
     if (user) {
-      return true;
+      return {
+        user,
+        exists: true,
+      };
     } else {
-      return false;
+      return {
+        user: null,
+        exists: false,
+      };
     }
   }
 

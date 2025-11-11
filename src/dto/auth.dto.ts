@@ -1,6 +1,9 @@
 import {
+  IsBoolean,
   IsEmail,
+  IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MinLength,
@@ -27,4 +30,32 @@ export class AuthDto {
 
   @IsString()
   phone: string;
+
+  @IsNumber()
+  @IsOptional()
+  targetGpa: number;
+
+  @IsString()
+  @IsOptional()
+  major: string;
+
+  @IsString()
+  @IsOptional()
+  profileImage: string;
+
+  @IsBoolean()
+  @IsOptional()
+  preferEmailNotification: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  preferPushNotification: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  preferQuizReminders: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  preferLeaderboardUpdates: boolean;
 }
