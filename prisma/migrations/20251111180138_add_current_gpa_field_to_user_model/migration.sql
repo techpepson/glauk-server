@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "currentGpa" DOUBLE PRECISION DEFAULT 0,
+ADD COLUMN     "totalCredits" INTEGER DEFAULT 0;

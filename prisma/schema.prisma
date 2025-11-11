@@ -36,22 +36,24 @@ model User {
   preferPushNotification   Boolean   @default(true)
   preferQuizReminders      Boolean   @default(true)
   preferLeaderboardUpdates Boolean   @default(true)
+  currentGpa               Float?    @default(0)
+  totalCredits             Int?      @default(0)
   role                     Role      @default(STUDENT)
-  courses                  Course[]
+  courses                  Courses[]
   verifiedAt               DateTime?
   verificationCodeSentAt   DateTime? @default(now())
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 }
 
-model Course {
+model Courses {
   id                    String         @id @default(cuid())
   courseName            String
   courseDescription     String?
   courseCode            String
   courseCredits         Int
-  courseGrades          String[]
-  courseGradePoints     Float[]
+  courseGrades          String[]       @default([])
+  courseGradePoints     Float[]        @default([])
   courseInstructorEmail String?
   courseSlides          CourseSlides[]
   user                  User           @relation(fields: [userId], references: [id])
@@ -61,8 +63,8 @@ model Course {
 }
 
 model CourseSlides {
-  id       String  @id @default(cuid())
-  course   Course? @relation(fields: [courseId], references: [id])
+  id       String   @id @default(cuid())
+  course   Courses? @relation(fields: [courseId], references: [id])
   courseId String?
 }
 

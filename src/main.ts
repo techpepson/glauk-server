@@ -6,7 +6,7 @@ import helmet from 'helmet';
 import { configDotenv } from 'dotenv';
 import { ValidationPipe } from '@nestjs/common';
 
-configDotenv();
+configDotenv({ quiet: true });
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

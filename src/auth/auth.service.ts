@@ -1,5 +1,6 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -93,18 +94,18 @@ export class AuthService {
         );
       }
     } catch (error: any) {
+      this.logger.error(`Error in manualRegister: ${error.message}`);
       if (error instanceof ConflictException) {
         throw new ConflictException('User already exists');
-      }
-      if (error instanceof TooManyRequestsException) {
+      } else if (error instanceof TooManyRequestsException) {
         throw new TooManyRequestsException(
           'Too many registration attempts. Please try again later.',
         );
+      } else {
+        throw new InternalServerErrorException(
+          'An error occurred during registration. Please try again later.',
+        );
       }
-      this.logger.error(`Error in manualRegister: ${error.message}`);
-      throw new InternalServerErrorException(
-        'An error occurred during registration. Please try again later.',
-      );
     }
   }
 
@@ -132,23 +133,21 @@ export class AuthService {
 
       return { message: 'Email verified successfully', success: true };
     } catch (error: any) {
+      this.logger.error(`Error in verifyEmail: ${error.message}`);
       if (error instanceof ConflictException) {
         throw new ConflictException(
           'Email is already verified or invalid verification code',
         );
-      }
-      if (error instanceof NotFoundException) {
+      } else if (error instanceof NotFoundException) {
         throw new NotFoundException('User does not exist');
-      }
-      if (error instanceof TooManyRequestsException) {
+      } else if (error instanceof TooManyRequestsException) {
         throw new TooManyRequestsException(
           'Too many verification attempts. Please try again later.',
         );
-      }
-      this.logger.error(`Error in verifyEmail: ${error.message}`);
-      throw new InternalServerErrorException(
-        'An error occurred during email verification. Please try again later.',
-      );
+      } else
+        throw new InternalServerErrorException(
+          'An error occurred during email verification. Please try again later.',
+        );
     }
   }
 
@@ -201,19 +200,16 @@ export class AuthService {
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         throw new NotFoundException(error.message);
-      }
-      if (error instanceof ConflictException) {
+      } else if (error instanceof ConflictException) {
         throw new ConflictException(error.message);
-      }
-      if (error instanceof TooManyRequestsException) {
+      } else if (error instanceof TooManyRequestsException) {
         throw new TooManyRequestsException(
           'Too many login attempts. Please try again later.',
         );
-      }
-
-      throw new InternalServerErrorException(
-        'An error occurred during login. Please try again later.',
-      );
+      } else
+        throw new InternalServerErrorException(
+          'An error occurred during login. Please try again later.',
+        );
     }
   }
 
@@ -302,17 +298,16 @@ export class AuthService {
         }
       }
     } catch (error: any) {
-      if (error instanceof ConflictException) {
-        throw new ConflictException(error.message);
-      }
-      if (error instanceof PreconditionFailedException) {
-        throw new PreconditionFailedException(error.message);
-      }
       this.logger.error(`Error in googleAuth: ${error.message}`);
 
-      throw new InternalServerErrorException(
-        'An error occurred during Google authentication. Please try again later.',
-      );
+      if (error instanceof ConflictException) {
+        throw new ConflictException(error.message);
+      } else if (error instanceof PreconditionFailedException) {
+        throw new PreconditionFailedException(error.message);
+      } else
+        throw new InternalServerErrorException(
+          'An error occurred during Google authentication. Please try again later.',
+        );
     }
   }
 
@@ -353,13 +348,13 @@ export class AuthService {
 
       return { message: 'Password reset successful' };
     } catch (error: any) {
+      this.logger.error(`Error in resetPassword: ${error.message}`);
       if (error instanceof NotFoundException) {
         throw new NotFoundException('User does not exist');
-      }
-      this.logger.error(`Error in resetPassword: ${error.message}`);
-      throw new InternalServerErrorException(
-        'An error occurred during password reset. Please try again later.',
-      );
+      } else
+        throw new InternalServerErrorException(
+          'An error occurred during password reset. Please try again later.',
+        );
     }
   }
 
@@ -387,32 +382,44 @@ export class AuthService {
 
       return { message: 'User preference updated successfully' };
     } catch (error: any) {
+      this.logger.error(`Error in rememberUser: ${error.message}`);
       if (error instanceof NotFoundException) {
         throw new NotFoundException('User does not exist');
-      }
-      this.logger.error(`Error in rememberUser: ${error.message}`);
-      throw new InternalServerErrorException(
-        'An error occurred while updating user preference. Please try again later.',
-      );
+      } else
+        throw new InternalServerErrorException(
+          'An error occurred while updating user preference. Please try again later.',
+        );
     }
   }
 
   async deleteAccount(email: string) {
-    const user = (await this.helper.userExist(email)).user;
+    try {
+      const user = (await this.helper.userExist(email)).user;
 
-    if (!user) {
-      throw new NotFoundException('User does not exist');
+      if (!user) {
+        throw new NotFoundException('User does not exist');
+      }
+
+      if (!email) {
+        throw new BadRequestException('Email is required to delete account.');
+      }
+      //perform hard-delete
+      await this.prisma.user.delete({
+        where: {
+          email,
+        },
+      });
+
+      return {
+        message: 'Account deleted successfully.',
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      } else {
+        throw new InternalServerErrorException(error.message);
+      }
     }
-    //perform hard-delete
-    await this.prisma.user.delete({
-      where: {
-        email,
-      },
-    });
-
-    return {
-      message: 'Account deleted successfully.',
-    };
   }
 
   async updateDetails() {}

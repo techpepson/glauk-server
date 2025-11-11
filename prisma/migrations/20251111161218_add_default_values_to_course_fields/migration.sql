@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Course" ALTER COLUMN "courseGrades" SET DEFAULT ARRAY[]::TEXT[],
+ALTER COLUMN "courseGradePoints" SET DEFAULT ARRAY[]::DOUBLE PRECISION[];

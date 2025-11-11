@@ -1,6 +1,6 @@
-import { PerfomanceService } from './performance/perfomance.service';
-import { PerformanceModule } from './performance/performance.module';
-import { PerformanceController } from './performance/performance.controller';
+import { CoursesService } from './courses/courses.service';
+import { PerformanceModule } from './courses/courses.module';
+import { CoursesController } from './courses/courses.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
@@ -53,7 +53,7 @@ import { CacheModule } from '@nestjs/cache-manager';
       load: [authConfig],
     }),
   ],
-  controllers: [PerformanceController, AppController],
-  providers: [PerfomanceService, AppService],
+  controllers: [CoursesController, AppController],
+  providers: [CoursesService, AppService],
 })
 export class AppModule {}
