@@ -9,12 +9,12 @@ import {
   PreconditionFailedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuthDto } from 'src/dto/auth.dto';
-import { HelpersService } from 'src/helpers/helpers.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { HelpersService } from '../helpers/helpers.service';
+import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { TooManyRequestsException } from 'src/exceptions/too-many-exceptions';
+import { AuthDto } from '../dto/auth.dto';
+import { TooManyRequestsException } from '../exceptions/too-many-exceptions';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 
 @Injectable()

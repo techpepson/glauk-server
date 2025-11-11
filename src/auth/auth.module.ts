@@ -3,8 +3,8 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtModule } from '@nestjs/jwt';
-import { jwtConstants } from 'src/constants/jwt.constants';
-import { HelpersService } from 'src/helpers/helpers.service';
+import { jwtConstants } from '../constants/jwt.constants';
+import { HelpersService } from '../helpers/helpers.service';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Module({

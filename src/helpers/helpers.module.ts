@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { HelpersService } from './helpers.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
   imports: [],
