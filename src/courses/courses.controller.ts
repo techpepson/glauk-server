@@ -9,6 +9,7 @@ import {
   Param,
   Get,
   Query,
+  Patch,
 } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { CourseDTO, CourseUpdateDTO } from '../dto/course.dto';
@@ -30,7 +31,7 @@ export class CoursesController {
     };
   }
 
-  @Put('update-multiple')
+  @Patch('update-multiple')
   @UseGuards(JwtAuthGuard)
   async updateMultipleCourses(
     @Req() req: Request,
@@ -57,11 +58,11 @@ export class CoursesController {
     };
   }
 
-  @Get('fetch')
+  @Get('fetch-courses')
   @UseGuards(JwtAuthGuard)
   async fetchCourseData(@Req() req: Request) {
     const email = (req.user as any).email;
-    const data = await this.coursesService.fetchCourseData(email);
+    const data = await this.coursesService.fetchCourses(email);
     return data;
   }
 }

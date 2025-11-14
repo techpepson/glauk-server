@@ -13,7 +13,7 @@ export class CourseDTO {
   @IsNotEmpty()
   courseCode: string;
 
-  @IsNumber()
+  @IsNumber({})
   @IsNotEmpty()
   courseCredits: number;
 

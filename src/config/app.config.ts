@@ -10,7 +10,10 @@ export default () => ({
     appBaseUrl: process.env.APP_BASE_URL || 'https://glauk-app.vercel.app',
     appClientBaseUrl:
       process.env.APP_CLIENT_BASE_URL || 'https://glauk-app.vercel.app',
-    environment: process.env.ENV,
+    appProdBaseUrl: process.env.APP_PROD_BASE_URL || 'https://api.glauk.app',
+    environment: process.env.ENV || 'development',
+    appProdClientBaseUrl:
+      process.env.APP_PROD_CLIENT_BASE_URL || 'https://www.glauk.app',
   },
   db: {
     prismaDbUrl: process.env.DATABASE_URL,
@@ -26,3 +29,6 @@ export default () => ({
     callbackUrl: process.env.GOOGLE_CALLBACK_URL,
   },
 });
+
+
+//app environment can be 'development' or 'production'

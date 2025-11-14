@@ -1,5 +1,5 @@
 import { CoursesService } from './courses/courses.service';
-import { PerformanceModule } from './courses/courses.module';
+import { CourseModule } from './courses/courses.module';
 import { CoursesController } from './courses/courses.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -13,10 +13,12 @@ import { join } from 'path';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
+import { PrismaService } from './prisma/prisma.service';
+import { HelpersService } from './helpers/helpers.service';
 
 @Module({
   imports: [
-    PerformanceModule,
+    CourseModule,
     CacheModule.register(),
     ThrottlerModule.forRoot({
       throttlers: [
@@ -38,9 +40,9 @@ import { CacheModule } from '@nestjs/cache-manager';
         },
       },
       defaults: {
-        from: `"No Reply" <${process.env.MAILER_DEFAULT_FROM}>`,
+        from: `"The Glauk Team" <${process.env.MAILER_DEFAULT_FROM}>`,
       },
-      preview: true,
+      preview: false,
       template: {
         dir: join(__dirname, '..', 'views'),
         adapter: new HandlebarsAdapter(),
@@ -54,6 +56,6 @@ import { CacheModule } from '@nestjs/cache-manager';
     }),
   ],
   controllers: [CoursesController, AppController],
-  providers: [CoursesService, AppService],
+  providers: [CoursesService, AppService, PrismaService, HelpersService],
 })
 export class AppModule {}

@@ -129,14 +129,10 @@
             <tr>
               <td class='card'>
                 <h1>Hello{{#if name}}, {{name}}{{/if}} 👋</h1>
-                <p>Use the verification code below to confirm your email for
+                <p>Click the button below to confirm your email for
                   <strong>{{appName}}</strong>. The code is valid for
                   <strong>{{expirationMinutes}}</strong>
                   minutes.</p>
-
-                <p style='text-align:center; margin: 16px 0 20px;'>
-                  <span class='code-box'>{{verificationCode}}</span>
-                </p>
 
                 {{#if verifyUrl}}
                   <p style='text-align:center; margin-bottom: 20px;'>

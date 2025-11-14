@@ -14,9 +14,8 @@ import { HelpersService } from '../helpers/helpers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { AuthDto } from '../dto/auth.dto';
+import { AccountUpdateDto, AuthDto, LoginDto } from '../dto/auth.dto';
 import { TooManyRequestsException } from '../exceptions/too-many-exceptions';
-import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 
 @Injectable()
 export class AuthService {
@@ -26,7 +25,6 @@ export class AuthService {
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   logger = new Logger(AuthService.name);
@@ -43,12 +41,18 @@ export class AuthService {
       //send email to user to verify their email
       const verificationCode = await this.helper.generateRandomCode(6);
 
+      const appEnv = this.configService.get<string>('app.environment');
+
       const saltRounds = 10;
       const salt = await bcrypt.genSalt(saltRounds);
       const hashedPassword = await bcrypt.hash(payload.password, salt);
 
-      const appBaseUrl = this.configService.get<string>('app.appBaseUrl');
-      const verificationUrl = `${appBaseUrl}/verify-email?code=${verificationCode}&email=${payload.email}`;
+      const appBaseUrl =
+        appEnv === 'production'
+          ? this.configService.get<string>('app.appProdBaseUrl')
+          : this.configService.get<string>('app.appBaseUrl');
+
+      const verificationUrl = `${appBaseUrl}/auth/verify-email?code=${verificationCode}&email=${payload.email}`;
 
       const mail = await this.mailerService.sendMail({
         to: payload.email,
@@ -67,19 +71,19 @@ export class AuthService {
 
       const now = new Date();
 
-      const splitName = payload.name.split(' ');
+      const splitName = payload.name.trim().split(' ');
       const firstName = splitName[0];
 
       //create a new user into the system
       if (mail.accepted.length > 0) {
         await this.prisma.user.create({
           data: {
-            email: payload.email,
+            email: payload.email.trim(),
             verificationCode,
             password: hashedPassword,
             userName: `${'shark_'}${firstName}`.toLowerCase(),
-            name: payload.name,
-            phone: payload.phone,
+            name: payload.name.trim(),
+            phone: payload.phone.trim(),
             verificationCodeSentAt: now,
           },
         });
@@ -103,7 +107,8 @@ export class AuthService {
         );
       } else {
         throw new InternalServerErrorException(
-          'An error occurred during registration. Please try again later.',
+          error.message ||
+            'An error occurred during registration. Please try again later.',
         );
       }
     }
@@ -151,9 +156,9 @@ export class AuthService {
     }
   }
 
-  async manualLogin(payload: AuthDto) {
+  async manualLogin(payload: LoginDto) {
     try {
-      const user = (await this.helper.userExist(payload.email)).user;
+      const user = (await this.helper.userExist(payload.email.trim())).user;
 
       //check if user exists
       if (!user) {
@@ -161,7 +166,7 @@ export class AuthService {
       }
 
       const isEmailVerified = await this.helper.userEmailVerified(
-        payload.email,
+        payload.email.trim(),
       );
 
       const userPass = user?.password || '';
@@ -220,16 +225,7 @@ export class AuthService {
     profilePicture: string,
   ) {
     try {
-      let user: any;
-
-      const storedUserInCache = await this.cacheManager.get('glauk_user');
-
-      if (storedUserInCache) {
-        user = storedUserInCache;
-      } else {
-        user = (await this.helper.userExist(email)).user;
-        await this.cacheManager.set('glauk_user', user); //cache for 5 minutes
-      }
+      const user = (await this.helper.userExist(email)).user;
 
       //check if user exists
       if (user && !user.isEmailVerified) {
@@ -284,12 +280,18 @@ export class AuthService {
               profileImage: profilePicture,
             },
           });
+
+          const token = this.jwtService.sign({
+            id: newUser.id,
+            email: newUser.email,
+          });
           return {
             message: 'Registration successful. Please verify your email.',
             isFirstTimeUser: newUser.isFirstTimeUser,
             isFirstTimeRegister: true,
             isUserRemembered: newUser.isUserRemembered || false,
             role: newUser.role,
+            token,
           };
         } else {
           throw new InternalServerErrorException(
@@ -313,16 +315,7 @@ export class AuthService {
 
   async resetPassword(email: string, newPassword: string, oldPassword: string) {
     try {
-      let user: any;
-
-      const storedUserInCache = await this.cacheManager.get('glauk_user');
-
-      if (storedUserInCache) {
-        user = storedUserInCache;
-      } else {
-        user = (await this.helper.userExist(email)).user;
-        await this.cacheManager.set('glauk_user', user); //cache for 5 minutes
-      }
+      const user = (await this.helper.userExist(email)).user;
 
       if (!user) {
         throw new NotFoundException('User does not exist');
@@ -351,43 +344,41 @@ export class AuthService {
       this.logger.error(`Error in resetPassword: ${error.message}`);
       if (error instanceof NotFoundException) {
         throw new NotFoundException('User does not exist');
+      }
+      if (error instanceof ConflictException) {
+        throw new ConflictException(error.message);
       } else
         throw new InternalServerErrorException(
-          'An error occurred during password reset. Please try again later.',
+          error.message ||
+            'An error occurred while resetting password. Please try again later.',
         );
     }
   }
 
-  async rememberUser(email: string, remember: boolean) {
+  async rememberUser(email: string) {
     try {
-      let user: any;
-
-      const storedUserInCache = await this.cacheManager.get('glauk_user');
-
-      if (storedUserInCache) {
-        user = storedUserInCache;
-      } else {
-        user = (await this.helper.userExist(email)).user;
-        await this.cacheManager.set('glauk_user', user); //cache for 5 minutes
-      }
+      const user = (await this.helper.userExist(email)).user;
 
       if (!user) {
         throw new NotFoundException('User does not exist');
       }
 
+      const userRemmbranceStatus = user.isUserRemembered;
+
       await this.prisma.user.update({
         where: { email },
-        data: { isUserRemembered: remember },
+        data: { isUserRemembered: !userRemmbranceStatus },
       });
 
-      return { message: 'User preference updated successfully' };
+      return { message: 'User preference updated successfully', user: email };
     } catch (error: any) {
       this.logger.error(`Error in rememberUser: ${error.message}`);
       if (error instanceof NotFoundException) {
         throw new NotFoundException('User does not exist');
       } else
         throw new InternalServerErrorException(
-          'An error occurred while updating user preference. Please try again later.',
+          error.message ||
+            'An error occurred while updating user preference. Please try again later.',
         );
     }
   }
@@ -422,5 +413,41 @@ export class AuthService {
     }
   }
 
-  async updateDetails() {}
+  async updateDetails(payload: AccountUpdateDto, email: string) {
+    try {
+      const user = (await this.helper.userExist(email)).user;
+
+      if (!user) {
+        throw new NotFoundException('User does not exist');
+      }
+
+      await this.prisma.user.update({
+        where: { email },
+        data: {
+          name: payload.name,
+          phone: payload.phone,
+          userName: payload.userName,
+          email: payload.email,
+          targetGpa: payload.targetGpa,
+          major: payload.major,
+          profileImage: payload.profileImage,
+          preferEmailNotification: payload.preferEmailNotification,
+          preferPushNotification: payload.preferPushNotification,
+          preferQuizReminders: payload.preferQuizReminders,
+          preferLeaderboardUpdates: payload.preferLeaderboardUpdates,
+        },
+      });
+
+      return { message: 'Account details updated successfully' };
+    } catch (error: any) {
+      this.logger.error(`Error in updateDetails: ${error.message}`);
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException('User does not exist');
+      } else
+        throw new InternalServerErrorException(
+          error.message ||
+            'An error occurred while updating account details. Please try again later.',
+        );
+    }
+  }
 }

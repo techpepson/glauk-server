@@ -1,7 +1,9 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
+  Patch,
   Post,
   Query,
   Render,
@@ -10,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { AuthDto } from '../dto/auth.dto';
+import { AccountUpdateDto, AuthDto, LoginDto } from '../dto/auth.dto';
 import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { GoogleAuthGuard } from './google-auth.guard';
@@ -25,7 +27,7 @@ export class AuthController {
 
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post('register')
-  async manualRegister(payload: AuthDto) {
+  async manualRegister(@Body() payload: AuthDto) {
     const registration = await this.authService.manualRegister(payload);
     return {
       message: registration.message,
@@ -33,8 +35,8 @@ export class AuthController {
   }
 
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @Post('login')
-  async manualLogin(payload: AuthDto) {
+  @Get('login')
+  async manualLogin(@Body() payload: LoginDto) {
     const login = await this.authService.manualLogin(payload);
     return {
       message: login.message,
@@ -90,7 +92,6 @@ export class AuthController {
     const clientBaseUrl = this.configService.get<string>(
       'app.appClientBaseUrl',
     );
-
     //redirect to different urls based on first time user or not
     if (googleCallBack?.isFirstTimeRegister) {
       const loginUrl = `${clientBaseUrl}/auth/success?token=${googleCallBack.token}&isFirstTimeUser=${googleCallBack.isFirstTimeUser}`;
@@ -106,9 +107,9 @@ export class AuthController {
 
   @Get('remember-user')
   @UseGuards(JwtAuthGuard)
-  async rememberUser(@Req() req: Request, @Query('status') status: boolean) {
+  async rememberUser(@Req() req: Request) {
     const email = (req.user as any).email;
-    const rememberService = await this.authService.rememberUser(email, status);
+    const rememberService = await this.authService.rememberUser(email);
 
     return {
       message: rememberService.message,
@@ -124,6 +125,36 @@ export class AuthController {
 
     return {
       message: deleteService.message,
+    };
+  }
+
+  @Post('reset-password')
+  @UseGuards(JwtAuthGuard)
+  async resetPassword(
+    @Req() req: Request,
+    @Body('oldPassword') oldPassword: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    const email = (req.user as any).email;
+    const resetService = await this.authService.resetPassword(
+      email,
+      newPassword,
+      oldPassword,
+    );
+
+    return {
+      message: resetService.message,
+    };
+  }
+
+  @Patch('update-details')
+  @UseGuards(JwtAuthGuard)
+  async updateDetails(@Req() req: Request, @Body() payload: AccountUpdateDto) {
+    const email = (req.user as any).email;
+    const updateService = await this.authService.updateDetails(payload, email);
+
+    return {
+      message: updateService.message,
     };
   }
 }

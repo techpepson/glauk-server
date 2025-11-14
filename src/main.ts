@@ -9,14 +9,24 @@ import { ValidationPipe } from '@nestjs/common';
 configDotenv({ quiet: true });
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: ['log', 'debug', 'warn', 'fatal'],
-  });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {});
 
   //MVC
   app.setBaseViewsDir(join(__dirname, '..', 'views'));
   app.setViewEngine('hbs');
   app.useStaticAssets(join(__dirname, '..', 'public'));
+
+  app.enableCors({
+    origin: [
+      'https://google.com',
+      'http://localhost:4000',
+      'http://localhost:3000',
+      '*',
+    ],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
 
   //helmet for security
   app.use(
@@ -50,11 +60,15 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
+      whitelist: true,
+      transformOptions: {
+        enableImplicitConversion: true, //this allows nest to automatically convert types
+      },
     }),
   );
 
   //listen to port
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 4000);
 }
 
 bootstrap();

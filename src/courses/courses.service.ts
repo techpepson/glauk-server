@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -19,6 +20,28 @@ export class CoursesService {
     try {
       const user = (await this.helpers.userExist(userEmail)).user;
 
+      //check if user email is provided
+      if (!userEmail) {
+        throw new BadRequestException('User email is required to add course');
+      }
+
+      const courseCode = payload.courseCode.trim();
+
+      const existingCourse = await this.prisma.courses.findUnique({
+        where: {
+          courseCode_userId: {
+            courseCode: courseCode,
+            userId: user?.id || '',
+          },
+        },
+      });
+
+      if (existingCourse) {
+        throw new ConflictException(
+          'Course with this code already exists for the user',
+        );
+      }
+
       //check if user exists
       if (!user) {
         throw new NotFoundException('User not found');
@@ -27,11 +50,11 @@ export class CoursesService {
       //now add the course, through the user
       const course = await this.prisma.courses.create({
         data: {
-          courseName: payload.courseName,
-          courseDescription: payload.courseDescription,
-          courseCode: payload.courseCode,
+          courseName: payload.courseName.trim(),
+          courseDescription: payload.courseDescription.trim(),
+          courseCode: payload.courseCode.trim(),
           courseCredits: payload.courseCredits,
-          courseInstructorEmail: payload.courseInstructorEmail ?? '',
+          courseInstructorEmail: payload.courseInstructorEmail?.trim() ?? '',
           user: {
             connect: {
               id: user.id,
@@ -47,8 +70,8 @@ export class CoursesService {
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new NotFoundException(error.message);
-      } else if (error instanceof BadRequestException) {
-        throw new BadRequestException(error.message);
+      } else if (error instanceof ConflictException) {
+        throw new ConflictException(error.message);
       } else {
         throw new InternalServerErrorException(error.message);
       }
@@ -61,6 +84,11 @@ export class CoursesService {
 
       if (!user) {
         throw new NotFoundException('User does not exist');
+      }
+
+      //check if email is provided
+      if (!email) {
+        throw new BadRequestException('Email is required to update courses');
       }
 
       // Extract course IDs to update
@@ -95,6 +123,7 @@ export class CoursesService {
             courseDescription: course.courseDescription,
             courseCredits: course.courseCredits,
             courseInstructorEmail: course.courseInstructorEmail,
+            courseCode: course.courseCode,
           },
         }),
       );
@@ -118,6 +147,11 @@ export class CoursesService {
   async deleteCourse(email: string, courseId: string) {
     try {
       const user = (await this.helpers.userExist(email)).user;
+
+      //check if course Id is provided
+      if (!courseId) {
+        throw new BadRequestException('Course ID is required to delete course');
+      }
 
       const course = await this.prisma.courses.findUnique({
         where: {
@@ -153,16 +187,19 @@ export class CoursesService {
       } else if (error instanceof NotFoundException) {
         throw new NotFoundException(error.message);
       } else {
-        throw new InternalServerErrorException(
-          'An internal server error occurred while deleting course.',
-        );
+        throw new InternalServerErrorException(error.message);
       }
     }
   }
 
-  async fetchCourseData(email: string) {
+  async fetchCourses(email: string) {
     try {
       const user = (await this.helpers.userExist(email)).user;
+
+      //check if email is provided
+      if (!email) {
+        throw new BadRequestException('Email is required to fetch courses');
+      }
 
       if (!user) {
         throw new NotFoundException('User does not exist');
@@ -189,6 +226,10 @@ export class CoursesService {
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new NotFoundException(error.message);
+      } else if (error instanceof BadRequestException) {
+        throw new BadRequestException(error.message);
+      } else if (error instanceof ConflictException) {
+        throw new ConflictException(error.message);
       } else {
         throw new InternalServerErrorException(error.message);
       }
