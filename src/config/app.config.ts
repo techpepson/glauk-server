@@ -28,7 +28,11 @@ export default () => ({
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackUrl: process.env.GOOGLE_CALLBACK_URL,
   },
+  supabase: {
+    url: process.env.SUPABASE_PROJECT_URL,
+    projectId: process.env.SUPABASE_PROJECT_ID,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  },
 });
-
 
 //app environment can be 'development' or 'production'

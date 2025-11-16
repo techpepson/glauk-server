@@ -36,8 +36,8 @@ model User {
   preferPushNotification   Boolean   @default(true)
   preferQuizReminders      Boolean   @default(true)
   preferLeaderboardUpdates Boolean   @default(true)
-  currentGpa               Float?    @default(0)
-  totalCredits             Int?      @default(0)
+  currentGpa               Float     @default(0)
+  totalCredits             Int       @default(30)
   role                     Role      @default(STUDENT)
   courses                  Courses[]
   verifiedAt               DateTime?
@@ -65,9 +65,29 @@ model Courses {
 }
 
 model CourseSlides {
-  id       String   @id @default(cuid())
-  course   Courses? @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseId String?
+  id         String     @id @default(cuid())
+  course     Courses?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId   String?
+  slideUrl   String
+  courseArea String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  questions  Question[]
+}
+
+model Question {
+  id                         String       @id @default(cuid())
+  content                    String?
+  options                    String[]
+  correctAnswer              String
+  explanation                String?
+  difficultyLevel            String
+  questionType               String
+  numberOfQuestionsGenerated Int
+  course                     CourseSlides @relation(fields: [courseSlidesId], references: [id])
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+  courseSlidesId             String
 }
 
 enum Role {

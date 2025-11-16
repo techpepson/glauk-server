@@ -1,3 +1,4 @@
+import { QuizModule } from './quiz/quiz.module';
 import { CoursesService } from './courses/courses.service';
 import { CourseModule } from './courses/courses.module';
 import { CoursesController } from './courses/courses.controller';
@@ -18,6 +19,7 @@ import { HelpersService } from './helpers/helpers.service';
 
 @Module({
   imports: [
+        QuizModule, 
     CourseModule,
     CacheModule.register(),
     ThrottlerModule.forRoot({
