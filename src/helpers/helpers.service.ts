@@ -313,7 +313,9 @@ ${chunk}
             console.log(`Rate limited. Retrying chunk in ${wait}ms...`);
             await new Promise((r) => setTimeout(r, wait));
             if (attempt === MAX_RETRIES) {
-              throw new Error('Max retries reached for chunk summarization');
+              throw new InternalServerErrorException(
+                'Max retries reached for chunk summarization',
+              );
             }
           }
 
