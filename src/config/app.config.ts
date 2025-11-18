@@ -33,6 +33,9 @@ export default () => ({
     projectId: process.env.SUPABASE_PROJECT_ID,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   },
+  openRouter: {
+    apiKey: process.env.OPENROUTER_API_KEY,
+  },
 });
 
 //app environment can be 'development' or 'production'

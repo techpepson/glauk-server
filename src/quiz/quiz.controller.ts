@@ -2,16 +2,48 @@
 https://docs.nestjs.com/controllers#controllers
 */
 
-import { Controller } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { QuizService } from './quiz.service';
 import * as pdfParse from 'pdf-parse';
-import * as pptxParser from 'pptx-parser';
 import * as fs from 'fs';
-@Controller()
+import { Request } from 'express';
+import { QuizDto } from '../dto/quiz.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+@Controller('quiz')
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
 
-  async generateQuiz(file: Express.Multer.File) {}
+  @Post('generate-quiz')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  async generateQuiz(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+    @Body() payload: QuizDto,
+  ) {
+    const user = (req.user as any).email;
+
+    const quizService = await this.quizService.generateQuizFromPDF(
+      file,
+      user,
+      payload,
+    );
+
+    return {
+      message: 'Quiz generated successfully',
+      data: quizService.response,
+    };
+  }
 
   async deleteSavedQuiz() {
     // Implementation for deleting a saved quiz will go here

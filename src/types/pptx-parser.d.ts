@@ -1,1 +1,1 @@
-declare module 'pptx-parser';
+declare module 'pptx2json';

@@ -5,13 +5,13 @@ https://docs.nestjs.com/providers#services
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   PreconditionFailedException,
 } from '@nestjs/common';
 import { PDFParse } from 'pdf-parse';
 
 import * as fs from 'fs';
-import parsePptx from 'pptx-parser';
 import { PrismaService } from '../prisma/prisma.service';
 import { HelpersService } from '../helpers/helpers.service';
 import { QuizDto } from '../dto/quiz.dto';
@@ -24,7 +24,7 @@ export class QuizService {
     private readonly helpers: HelpersService,
   ) {}
 
-  async genQuerateQuizFromPDF(
+  async generateQuizFromPDF(
     file: Express.Multer.File,
     email: string,
     payload: QuizDto,
@@ -47,12 +47,33 @@ export class QuizService {
         );
       }
 
-      //upload file to supabase
-      const fileUrl = (await this.helpers.parseFileToSupabase(file, email))
-        .publicUrl;
-        
+      const parseToText = await this.helpers.parseFileToText(file, email);
+
+      const chunkedText = parseToText?.chunkText ?? [];
 
       //upload slides to AI model to generate quiz
-    } catch (error) {}
+      const aIRequest = await this.helpers.makeRequestToAIModel(
+        payload.numberOfQuestions,
+        payload.questionType,
+        chunkedText,
+        payload.additionalNotes,
+        payload.difficultyLevel,
+      );
+
+      console.log(aIRequest);
+
+      return {
+        response: aIRequest,
+      };
+    } catch (error) {
+      console.log(error);
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      } else if (error instanceof PreconditionFailedException) {
+        throw new PreconditionFailedException(error.message);
+      } else {
+        throw new InternalServerErrorException(error.message);
+      }
+    }
   }
 }

@@ -16,10 +16,18 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
 import { PrismaService } from './prisma/prisma.service';
 import { HelpersService } from './helpers/helpers.service';
+import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @Module({
   imports: [
-        QuizModule, 
+    MulterModule.register({
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 1024 * 1024 * 50,
+      },
+    }),
+    QuizModule,
     CourseModule,
     CacheModule.register(),
     ThrottlerModule.forRoot({
