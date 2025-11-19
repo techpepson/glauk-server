@@ -1,18 +1,25 @@
 export enum Role {
-  STUDENT,
-  LECTURER,
-  ADMIN,
+  STUDENT = 'student',
+  LECTURER = 'lecturer',
+  ADMIN = 'admin',
 }
 
 export enum QuizDifficulty {
-  EASY = 'Easy',
-  MEDIUM = 'Medium',
-  HARD = 'Hard',
+  EASY = 'easy',
+  MEDIUM = 'medium',
+  HARD = 'hard',
 }
 
 export enum QuestionType {
-  MULTIPLE_CHOICE = 'Multiple Choice',
-  TRUE_FALSE = 'True/False',
-  SHORT_ANSWER = 'Short Answer',
-  FILL_IN_THE_BLANK = 'Fill in the Blank',
+  MULTIPLE_CHOICE = 'multiple_choice',
+  TRUE_FALSE = 'true_false',
+  SHORT_ANSWER = 'short_answer',
+  FILL_IN_THE_BLANK = 'fill_in_the_blank',
+}
+
+export enum COMPLETIONSTATUS {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  PROGRESS = 'progress',
+  RETAKE_RECOMMENDED = 'retake_recommended',
 }

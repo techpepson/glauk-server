@@ -11,7 +11,8 @@ import { PDFParse } from 'pdf-parse';
 import PpptxToJson from 'pptx2json';
 import OpenAI from 'openai';
 import { ConfigService } from '@nestjs/config';
-import { QuizDifficulty } from '../enum/enum';
+import { QuestionType, QuizDifficulty } from '../enum/enum';
+import pLimit from 'p-limit';
 
 @Injectable()
 export class HelpersService {
@@ -229,6 +230,9 @@ export class HelpersService {
   }
 
   async callModelWithRetry(body, apiKey, retries = 5) {
+    const BASE_BACKOFF = 1200; // base delay
+    const JITTER = 400; // add random jitter to avoid burst patterns
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       const response = await fetch(
         'https://openrouter.ai/api/v1/chat/completions',
@@ -242,31 +246,65 @@ export class HelpersService {
         },
       );
 
-      // If successful → return immediately
+      // SUCCESS
       if (response.ok) return response;
 
-      // If rate-limited → wait & retry
+      // RATE-LIMITED (429)
       if (response.status === 429) {
-        const wait = 1000 * attempt; // exponential backoff
-        console.log(`Rate limited. Retrying in ${wait}ms...`);
+        // Read OpenRouter limit headers if available
+        const reset = response.headers.get('x-ratelimit-reset');
+        let wait = BASE_BACKOFF * attempt + Math.floor(Math.random() * JITTER);
+
+        // If server gives a reset time, respect it
+        if (reset) {
+          const resetMs = Number(reset) * 1000;
+          if (!isNaN(resetMs)) {
+            wait = Math.max(wait, resetMs);
+          }
+        }
+
+        console.log(`RATE LIMITED (429). Retry #${attempt} in ${wait}ms...`);
+        await new Promise((res) => setTimeout(res, wait));
+
+        if (attempt === retries) {
+          throw new InternalServerErrorException(
+            `Max retries reached (429 | rate limited)`,
+          );
+        }
+
+        continue;
+      }
+
+      // SERVER ERRORS (500+)
+      if (response.status >= 500) {
+        const wait =
+          BASE_BACKOFF * attempt + Math.floor(Math.random() * JITTER);
+        console.log(
+          `SERVER ERROR ${response.status}. Retrying in ${wait}ms...`,
+        );
         await new Promise((res) => setTimeout(res, wait));
         continue;
       }
 
-      // Other errors → throw
+      // OTHER ERRORS
       throw new Error(`Model call failed: ${await response.text()}`);
     }
 
-    throw new Error('Model failed after maximum retries (5).');
+    throw new Error('Model failed after maximum retries.');
   }
+
+  safeFetch = async (fn) => {
+    // Force a pause between ANY requests
+    await new Promise((r) => setTimeout(r, 1500)); // safer delay for free models
+    return fn();
+  };
 
   async makeRequestToAIModel(
     numberOfQuestions: number,
     questionTypeConfig: string,
     chunkText: string[],
     additionalNotes?: string,
-    difficultyLevel?: QuizDifficulty,
-    rawText?: string,
+    difficultyLevel?: string,
   ) {
     const apiKey = this.configService.get<string>('openRouter.apiKey');
     if (!apiKey) {
@@ -275,12 +313,14 @@ export class HelpersService {
       );
     }
 
-    const MAX_RETRIES = 5;
-    const PAUSE_BETWEEN_REQUESTS_MS = 2000; // 2s between requests to avoid rate limits
+    const limit = pLimit(1); // STRICT sequential (best for free tier)
+    const model = this.configService.get<string>('openRouter.model');
 
+    const MAX_RETRIES = 5;
+    const PAUSE_BETWEEN_REQUESTS_MS = 2500; // safer pacing
     const chunkSummaries: string[] = [];
 
-    // Helper: Summarize a chunk with retry + exponential backoff
+    // ---- SUMMARIZE CHUNK ----
     const summarizeChunk = async (chunk: string, index: number) => {
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
@@ -291,6 +331,7 @@ Return ONLY the summary text. No JSON or extra notes.
 CHUNK ${index + 1}:
 ${chunk}
         `;
+
           const response = await fetch(
             'https://openrouter.ai/api/v1/chat/completions',
             {
@@ -300,106 +341,116 @@ ${chunk}
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'deepseek/deepseek-r1-distill-llama-70b:free',
+                model: model,
                 messages: [{ role: 'user', content: prompt }],
                 temperature: 0.2,
               }),
             },
           );
 
+          // RATE LIMITED
           if (response.status === 429) {
-            // rate-limited → exponential backoff
-            const wait = PAUSE_BETWEEN_REQUESTS_MS * attempt;
-            console.log(`Rate limited. Retrying chunk in ${wait}ms...`);
+            const wait =
+              PAUSE_BETWEEN_REQUESTS_MS * attempt +
+              Math.floor(Math.random() * 500);
+
             await new Promise((r) => setTimeout(r, wait));
+
             if (attempt === MAX_RETRIES) {
               throw new InternalServerErrorException(
-                'Max retries reached for chunk summarization',
+                'Max retries reached for chunk summarization (429)',
               );
             }
+
+            continue;
           }
 
+          // SERVER ERROR
+          if (response.status >= 500) {
+            const wait =
+              PAUSE_BETWEEN_REQUESTS_MS * attempt +
+              Math.floor(Math.random() * 500);
+            console.log(
+              `Chunk ${index + 1} server error ${response.status}. Retrying in ${wait}ms...`,
+            );
+            await new Promise((r) => setTimeout(r, wait));
+            continue;
+          }
+
+          // OTHER ERRORS
           if (!response.ok) {
             const text = await response.text();
-            throw new Error(`Chunk ${index + 1} summarization failed: ${text}`);
+            throw new Error(`Chunk ${index + 1} failed: ${text}`);
           }
 
           const data = await response.json();
           const content = data?.choices?.[0]?.message?.content?.trim();
-          if (!content) throw new Error(`Chunk ${index + 1} summary empty`);
+
+          if (!content) {
+            throw new Error(`Chunk ${index + 1} returned empty content`);
+          }
 
           return content;
         } catch (err) {
           if (attempt === MAX_RETRIES) throw err;
-          const wait = PAUSE_BETWEEN_REQUESTS_MS * attempt;
+
+          const wait =
+            PAUSE_BETWEEN_REQUESTS_MS * attempt +
+            Math.floor(Math.random() * 500);
+
+          console.log(
+            `Chunk ${index + 1} error. Retry ${attempt} in ${wait}ms...`,
+          );
+
           await new Promise((r) => setTimeout(r, wait));
         }
       }
     };
 
-    // STEP 1 — Summarize all chunks sequentially with pause
-    const batchSize = 5; // safe small batch to avoid hitting rate limits
-    for (let i = 0; i < chunkText.length; i += batchSize) {
-      const batchChunks = chunkText.slice(i, i + batchSize);
-      const batchSummaries = await Promise.all(
-        batchChunks.map((chunk, index) => summarizeChunk(chunk, i + index)),
-      );
-      chunkSummaries.push(...batchSummaries);
+    // ---- STEP 1: Summaries ----
+    const batchSummaries = await Promise.all(
+      chunkText.map((chunk, i) =>
+        limit(() => this.safeFetch(() => summarizeChunk(chunk, i))),
+      ),
+    );
 
-      // optional small pause between batches
-      await new Promise((r) => setTimeout(r, 500));
-    }
+    chunkSummaries.push(...batchSummaries);
 
-    // STEP 2 — Merge summaries into unified summary
+    // Extra pause to avoid hitting limits
+    await new Promise((r) => setTimeout(r, 500));
+
+    // ---- STEP 2: Merge summaries ----
     const mergedSummary = chunkSummaries.join('\n\n');
 
-    // STEP 3 — Generate quiz based on merged summary
+    // ---- STEP 3: Generate quiz ----
     const quizPrompt = `
-You are an AI system that analyzes academic content and generates high-quality examinable quizzes in STRICT JSON format.
+You are an AI system that analyzes academic content and generates high-quality examinable quizzes in STRICT JSON.
 
 DOCUMENT SUMMARY:
 ${mergedSummary}
 
 TASK:
-1. Rewrite a polished unified summary of the topic.
-2. Generate exactly ${numberOfQuestions} quiz questions.
-3. Follow the question type distribution:
+1. Write a polished summary.
+2. Generate exactly ${numberOfQuestions} questions.
+3. Use distribution:
 ${questionTypeConfig}
 
 Difficulty: ${difficultyLevel ?? 'Not specified'}
-Additional Notes: ${additionalNotes ?? 'None'}
+Notes: ${additionalNotes ?? 'None'}
 
-RULES:
-- Use ONLY the information from the summary.
+Rules:
+- Use only information from the summary.
 - MCQs must have 4 options.
-- Each question must have:
-  - "type"
-  - "question"
-  - "options" (or null)
-  - "correct_answer"
-  - "explanation"
+- Every question must contain:
+  "type", "question", "options" (or null),
+  "correct_answer", "explanation"
 
-OUTPUT FORMAT:
-{
-  "summary": "...",
-  "questions": [
-    {
-      "type": "multiple_choice | true_false | short_answer | application",
-      "question": "...",
-      "options": ["...", "...", "...", "..."] or null,
-      "correct_answer": "...",
-      "explanation": "..."
-    }
-  ]
-}
+Return ONLY valid JSON.
+`;
 
-Return ONLY JSON, no extra text.
-  `;
-
-    // Send quiz generation request with retry
     const quizResponse = await this.callModelWithRetry(
       {
-        model: 'deepseek/deepseek-r1-distill-llama-70b:free',
+        model: model,
         messages: [{ role: 'user', content: quizPrompt }],
         temperature: 0.3,
       },
@@ -413,12 +464,13 @@ Return ONLY JSON, no extra text.
 
     const resultData = await quizResponse.json();
     const quizJson = resultData?.choices?.[0]?.message?.content;
+
     if (!quizJson) {
       throw new InternalServerErrorException(
-        'AI did not return a valid quiz JSON',
+        'AI did not return valid JSON for quiz',
       );
     }
 
-    return quizJson; // raw JSON string
+    return quizJson;
   }
 }

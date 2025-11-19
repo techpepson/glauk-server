@@ -5,7 +5,9 @@ https://docs.nestjs.com/controllers#controllers
 import {
   Body,
   Controller,
+  Param,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -30,6 +32,7 @@ export class QuizController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: Request,
     @Body() payload: QuizDto,
+    @Query('courseId') courseId?: string,
   ) {
     const user = (req.user as any).email;
 
@@ -37,6 +40,7 @@ export class QuizController {
       file,
       user,
       payload,
+      courseId,
     );
 
     return {

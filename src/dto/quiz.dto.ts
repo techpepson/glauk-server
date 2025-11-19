@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { QuestionType, QuizDifficulty } from '../enum/enum';
 
 export class QuizDto {
@@ -6,7 +13,7 @@ export class QuizDto {
   @IsNotEmpty()
   courseArea: string;
 
-  @IsString()
+  @IsEnum(QuizDifficulty)
   @IsNotEmpty()
   difficultyLevel: QuizDifficulty;
 
@@ -14,7 +21,7 @@ export class QuizDto {
   @IsNotEmpty()
   course: string;
 
-  @IsString()
+  @IsEnum(QuestionType)
   @IsNotEmpty()
   questionType: QuestionType;
 
@@ -25,4 +32,26 @@ export class QuizDto {
   @IsString()
   @IsOptional()
   additionalNotes: string;
+}
+
+export class QuizResponseDto {
+  @IsNumber()
+  @IsNotEmpty()
+  gradePoint: number;
+
+  @IsString()
+  @IsNotEmpty()
+  grade: string;
+
+  @IsInt()
+  @IsNotEmpty()
+  correctAnswers: number;
+
+  @IsInt()
+  @IsNotEmpty()
+  totalQuestions: number;
+
+  @IsString()
+  @IsOptional()
+  remarks: string;
 }

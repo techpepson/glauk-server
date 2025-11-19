@@ -38,7 +38,7 @@ model User {
   preferLeaderboardUpdates Boolean   @default(true)
   currentGpa               Float     @default(0)
   totalCredits             Int       @default(30)
-  role                     Role      @default(STUDENT)
+  role                     String    @default("student")
   courses                  Courses[]
   verifiedAt               DateTime?
   verificationCodeSentAt   DateTime? @default(now())
@@ -55,6 +55,7 @@ model Courses {
   courseGrades          String[]       @default([])
   courseGradePoints     Float[]        @default([])
   courseInstructorEmail String?
+  courseScores          Float[]        @default([])
   courseSlides          CourseSlides[]
   user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId                String
@@ -65,33 +66,29 @@ model Courses {
 }
 
 model CourseSlides {
-  id         String     @id @default(cuid())
-  course     Courses?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseId   String?
-  slideUrl   String
-  courseArea String
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  questions  Question[]
+  id               String     @id @default(cuid())
+  course           Courses?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId         String?
+  slideUrl         String
+  courseArea       String
+  completionStatus String     @default("pending")
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  questions        Question[]
 }
 
 model Question {
   id                         String       @id @default(cuid())
-  content                    String?
-  options                    String[]
-  correctAnswer              String
-  explanation                String?
-  difficultyLevel            String
-  questionType               String
+  content                    Json?
+  correctAnswers             Int
+  remarks                    String?
+  difficultyLevel            String       @default("medium")
+  questionType               String       @default("multiple_choice")
   numberOfQuestionsGenerated Int
+  obtainedGrade              String       @default("X")
+  obtainedGPT                Float        @default(0.0)
   course                     CourseSlides @relation(fields: [courseSlidesId], references: [id])
   createdAt                  DateTime     @default(now())
   updatedAt                  DateTime     @updatedAt
   courseSlidesId             String
-}
-
-enum Role {
-  STUDENT
-  LECTURER
-  ADMIN
 }

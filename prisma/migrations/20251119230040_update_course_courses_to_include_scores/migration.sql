@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Courses" ADD COLUMN     "courseScores" DOUBLE PRECISION[] DEFAULT ARRAY[]::DOUBLE PRECISION[];
